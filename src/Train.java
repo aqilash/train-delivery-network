@@ -1,4 +1,5 @@
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Train {
     private String name;
@@ -37,6 +38,12 @@ public class Train {
 
     public List<Package> getPackagesOnBoard() {
         return new ArrayList<>(packagesOnBoard);
+    }
+
+    public List<String> getPackageNamesOnBoard() {
+        return packagesOnBoard.stream()
+                .map(Package::getName)
+                .collect(Collectors.toList());
     }
 
     public void pickUpPackage(Package pkg) {

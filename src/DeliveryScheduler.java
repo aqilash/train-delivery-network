@@ -28,11 +28,7 @@ public class DeliveryScheduler {
             Train nearestTrain = findNearestTrainToPackage(nextPackage);
 
             if (nearestTrain != null) {
-
-                planRouteToPickUp(nearestTrain, nextPackage);
-
-                planRouteToDeliver(nearestTrain, nextPackage);
-
+                planCompleteRoute(nearestTrain, nextPackage);
                 undeliveredPackages.remove(nextPackage);
             } else {
                 throw new IllegalStateException("Error: Package " + nextPackage.getName() +
@@ -77,62 +73,53 @@ public class DeliveryScheduler {
         return totalTime;
     }
 
-    private void planRouteToPickUp(Train train, Package pkg) {
+    private void planCompleteRoute(Train train, Package pkg) {
         String trainLocation = train.getCurrentNode();
         String packageLocation = pkg.getCurrentNode();
-
-        if (trainLocation.equals(packageLocation)) {
-
-            train.pickUpPackage(pkg);
-            return;
-        }
-
-        List<String> path = network.findShortestPath(trainLocation, packageLocation);
-
-        for (int i = 0; i < path.size() - 1; i++) {
-            String from = path.get(i);
-            String to = path.get(i + 1);
-            int journeyTime = network.getJourneyTime(from, to);
-
-            moves.add(new Move(currentTime, train.getName(), from,
-                    List.of(), to, List.of()));
-
-            currentTime += journeyTime;
-            train.setCurrentNode(to);
-
-            if (to.equals(packageLocation)) {
-                train.pickUpPackage(pkg);
-            }
-        }
-    }
-
-    private void planRouteToDeliver(Train train, Package pkg) {
-        String trainLocation = train.getCurrentNode();
         String packageDestination = pkg.getDestinationNode();
 
-        if (trainLocation.equals(packageDestination)) {
+        // special case
+        if (trainLocation.equals(packageLocation) && packageLocation.equals(packageDestination)) {
+            train.pickUpPackage(pkg);
+            List<String> packageNames = train.getPackageNamesOnBoard();
             train.dropOffPackage(pkg);
+            moves.add(new Move(currentTime, train.getName(), packageLocation,
+                    packageNames, packageDestination, List.of(pkg.getName())));
             return;
         }
 
-        List<String> path = network.findShortestPath(trainLocation, packageDestination);
+        List<String> pathToPackage = trainLocation.equals(packageLocation) ? List.of(packageLocation)
+                : network.findShortestPath(trainLocation, packageLocation);
 
-        boolean isFirstMove = true;
+        List<String> pathToDestination = packageLocation.equals(packageDestination) ? List.of(packageDestination)
+                : network.findShortestPath(packageLocation, packageDestination);
 
-        for (int i = 0; i < path.size() - 1; i++) {
-            String from = path.get(i);
-            String to = path.get(i + 1);
+        List<String> fullPath = new ArrayList<>(pathToPackage);
+        if (fullPath.size() > 0 && pathToDestination.size() > 0 &&
+                fullPath.get(fullPath.size() - 1).equals(pathToDestination.get(0))) {
+            fullPath.addAll(pathToDestination.subList(1, pathToDestination.size()));
+        } else {
+            fullPath.addAll(pathToDestination);
+        }
+
+        boolean packagePickedUp = false;
+
+        for (int i = 0; i < fullPath.size() - 1; i++) {
+            String from = fullPath.get(i);
+            String to = fullPath.get(i + 1);
             int journeyTime = network.getJourneyTime(from, to);
 
-            List<String> packagesDroppedOff = List.of();
             List<String> packagesPickedUp = List.of();
+            List<String> packagesDroppedOff = List.of();
 
-            if (isFirstMove && from.equals(pkg.getStartingNode())) {
-                packagesPickedUp = List.of(pkg.getName());
+            if (from.equals(packageLocation) && !packagePickedUp) {
+                train.pickUpPackage(pkg);
+                packagePickedUp = true;
+                packagesPickedUp = train.getPackageNamesOnBoard();
             }
 
-            if (to.equals(packageDestination)) {
-
+            if (to.equals(packageDestination) && packagePickedUp) {
+                train.dropOffPackage(pkg);
                 packagesDroppedOff = List.of(pkg.getName());
             }
 
@@ -141,12 +128,6 @@ public class DeliveryScheduler {
 
             currentTime += journeyTime;
             train.setCurrentNode(to);
-
-            if (to.equals(packageDestination)) {
-                train.dropOffPackage(pkg);
-            }
-
-            isFirstMove = false;
         }
     }
 
