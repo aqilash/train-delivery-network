@@ -1,21 +1,23 @@
 # Train-Delivery-Network
 
-## Application Setup
-
-1. Copy and fill in credentials in configuration file:
+## Example Input
 
 ```
-cp application_example.properties application.properties
+3
+A
+B
+C
+2
+E1,A,B,30
+E2,B,C,10
+1
+K1,5,A,C
+1
+Q1,6,B
 ```
 
-2. To run application from scratch:
+## Example Output
 
 ```
-mvn spring-boot:run
-```
-
-Or if you don’t have Maven installed run:
-
-```
-./mvnw spring-boot:run
+W=time, T=train name, N1=start node, P1=[packages picked upt at N1], N2=end node, P2=[packages dropped off at N2]
 ```
